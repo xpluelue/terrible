@@ -1,0 +1,257 @@
+#include <xc.inc>
+
+    psect   init, class=CODE, delta=2
+    psect   end_init, class=CODE, delta=2
+    psect   powerup, class=CODE, delta=2
+    psect   cinit,class=CODE,delta=2
+    psect   functab,class=ENTRY,delta=2
+    psect   idloc,class=IDLOC,delta=2,noexec
+    psect   eeprom_data,class=EEDATA,delta=2,space=3,noexec
+    psect   intentry, class=CODE, delta=2
+    psect   reset_vec, class=CODE, delta=2
+
+    global _main, reset_vec, start_initialization
+
+psect config, class=CONFIG, delta=2
+#ifndef BOOTLOADER
+    dw	0xDFEC
+    dw	0xF7FF
+    dw	0xFFBF
+    dw	0xEFFE
+    dw	0xFFFF
+#endif
+    
+    psect	reset_vec
+reset_vec:
+    ljmp	_main
+    
+    psect cinit
+start_initialization:
+   
+    psect	CommonVar, class=COMMON, space=1, delta=1
+charcase: ds 1h
+
+    psect intentry
+intentry:
+timer_int:
+    BANKSEL PIR0
+    BTFSS PIR0, 5
+    goto back
+    BANKSEL PIR0
+    BCF PIR0,5
+    BANKSEL TMR0H
+       MOVLW TIMER_LOAD_H
+       MOVWF TMR0H
+       BANKSEL TMR0L
+       MOVLW TIMER_LOAD_L
+       MOVWF TMR0L
+    ADDWF TMR0L
+
+    ;????
+    ;?????
+    DECFSZ SEG_SEL,1//1.6ms
+    goto seg_roll
+    MOVLW SEG_NUM
+    ADDWF SEG_SEL,F
+    
+seg_roll:
+  
+    DECFSZ SEG_COUNTER,1//1.6ms
+    goto seg_display
+    MOVLW SEG_SW_COUNT;320ms
+    ADDWF SEG_COUNTER,F
+    
+    DECFSZ SEG_SEL_COUNTER ,1//
+    goto seg_display
+    MOVLW SEG_SEL_NUM
+    ADDWF SEG_SEL_COUNTER,F    
+    
+    
+seg_display:
+    BANKSEL PORTA
+    
+    BSF PORTA,2
+    BSF PORTA,3
+    BSF PORTA,4
+    BSF PORTA,5
+    
+    MOVF  SEG_SEL_COUNTER, 0
+    ADDWF SEG_SEL,0
+    call table_4
+    call SEG_SEL_TABLE
+
+    MOVF  SEG_SEL_COUNTER, 0
+    ADDWF SEG_SEL,0
+    call table
+    BANKSEL PORTB
+    MOVWF PORTB
+    
+back:
+    RETFIE
+    
+psect   main,class=CODE,delta=2 ; PIC10/12/16
+    
+    TIMER_COUNT EQU 100
+    SOFTWARE_COUNT EQU 4
+    SEG_SW_COUNT EQU 200
+    SEG_NUM EQU 4
+    SEG_SEL_NUM EQU 9
+    COUNTER EQU 070H
+    SEG_SEL EQU 071H
+    SEG_COUNTER EQU 072H
+    SEG_SEL_COUNTER EQU 073H
+ 
+    TIMER_LOAD_L EQU 10011100B
+    TIMER_LOAD_H EQU 11111111B
+    
+    SEG_100ms	EQU 074H
+    SEG_s   EQU 075H
+    SEG_10s EQU 076H
+    SEG_100s	EQU 077H
+ 
+    SEG_0_DATA EQU 03FH
+    SEG_1_DATA EQU 006H
+    SEG_2_DATA EQU 05BH
+    SEG_3_DATA EQU 04FH
+    SEG_4_DATA EQU 066H
+    SEG_5_DATA EQU 06DH
+    SEG_6_DATA EQU 07DH
+    SEG_7_DATA EQU 007H
+    SEG_8_DATA EQU 07FH
+    SEG_9_DATA EQU 06FH
+    SEG_10_DATA EQU 0ffh
+ 
+    global _main
+    _main:
+       ;init
+       
+       BANKSEL PORTA  ;
+       CLRF  PORTA  ;Init PORTA
+       BANKSEL LATA  ;Data Latch
+       CLRF  LATA  ;
+       BANKSEL ANSELA  ;
+       CLRF  ANSELA  ;digital I/O
+       BANKSEL TRISA  ;
+       MOVLW 11000001B
+       MOVWF  TRISA
+       
+       BANKSEL PORTB  ;
+       CLRF  PORTB  ;Init PORTC
+       BANKSEL ANSELB  ;
+       CLRF  ANSELB  ;digital I/O
+       BANKSEL TRISB  ;
+       MOVLW 00000000B
+       MOVWF  TRISB
+
+       BANKSEL PORTA  
+       movlw  000h      
+       movwf  PORTA  
+       
+       MOVLW SOFTWARE_COUNT
+       MOVWF COUNTER//CONUNTER ???4
+
+       MOVLW SEG_NUM
+       MOVWF SEG_SEL//SEEG_SEL???4
+       
+       MOVLW SEG_SW_COUNT
+       MOVWF SEG_COUNTER//SEG_COUNTER??wei
+       
+       MOVLW SEG_SEL_NUM
+       MOVWF SEG_SEL_COUNTER
+      
+       ;timer init
+       BANKSEL T0CON0
+       MOVLW 10010000B
+       MOVWF T0CON0 ;
+       BANKSEL T0CON1;
+       MOVLW 01000000B;
+       MOVWF T0CON1;
+       
+       
+       BANKSEL INTCON
+       MOVLW 10000001B
+       MOVWF INTCON
+       BANKSEL PIE0
+       BSF PIE0,5
+       ;BSF PIE0,0
+       
+       
+       BANKSEL TMR0H
+       MOVLW TIMER_LOAD_H
+       MOVWF TMR0H
+       BANKSEL TMR0L
+       MOVLW TIMER_LOAD_L
+       MOVWF TMR0L
+       BANKSEL PIE4      
+       
+       loop:
+       NOP
+       goto loop
+     
+table_4:
+    addwf PCL,F
+    return
+    retlw 1
+    retlw 2
+    retlw 3
+    retlw 4
+    retlw 1
+    retlw 2
+    retlw 3
+    retlw 4
+    retlw 1
+    retlw 2
+    retlw 3
+    retlw 4
+       
+table:
+    addwf PCL,F
+    retlw SEG_1_DATA
+    retlw SEG_2_DATA
+    retlw SEG_3_DATA
+    retlw SEG_4_DATA
+    retlw SEG_5_DATA
+    retlw SEG_6_DATA
+    retlw SEG_7_DATA
+    retlw SEG_8_DATA
+    retlw SEG_9_DATA
+    retlw SEG_1_DATA
+    retlw SEG_2_DATA
+    retlw SEG_3_DATA
+    retlw SEG_4_DATA
+    retlw SEG_5_DATA
+    retlw SEG_6_DATA
+    retlw SEG_7_DATA
+    retlw SEG_8_DATA
+    retlw SEG_9_DATA
+SEG_SEL_TABLE:
+    addwf PCL,F
+    return
+    goto seg1_serve
+    goto seg2_serve
+    goto seg3_serve
+    goto seg4_serve
+seg_table_back:
+    return
+    
+seg1_serve:
+    BANKSEL PORTA
+    BCF PORTA,2
+    goto seg_table_back
+seg2_serve:
+    BANKSEL PORTA
+    BCF PORTA,3
+    goto seg_table_back
+seg3_serve:
+    BANKSEL PORTA
+    BCF PORTA,4
+    goto seg_table_back
+seg4_serve:
+    BANKSEL PORTA
+    BCF PORTA,5
+    goto seg_table_back
+    
+return
+;write code here
+
+end reset_vec

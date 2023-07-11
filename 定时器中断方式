@@ -1,0 +1,89 @@
+#include <xc.inc>
+    psect   init, class=CODE, delta=2
+    psect   end_init, class=CODE, delta=2
+    psect   powerup, class=CODE, delta=2
+    psect   cinit,class=CODE,delta=2
+    psect   functab,class=ENTRY,delta=2
+    psect   idloc,class=IDLOC,delta=2,noexec
+    psect   eeprom_data,class=EEDATA,delta=2,space=3,noexec
+    psect   intentry, class=CODE, delta=2
+    psect   reset_vec, class=CODE, delta=2
+    global _main, reset_vec, start_initialization
+psect config, class=CONFIG, delta=2
+    dw	0xDFEC
+    dw	0xF7FF
+    dw	0xFFBF
+    dw	0xEFFE
+    dw	0xFFFF
+    psect	reset_vec
+reset_vec:
+    ljmp	_main
+    psect cinit
+start_initialization:
+    psect	CommonVar, class=COMMON, space=1, delta=1
+charcase: ds 1h
+    psect intentry
+intentry:
+    BANKSEL PIR4  ; 
+    BCF PIR4 ,0;  
+    ; IO???
+    BANKSEL PORTA  ; 
+    COMF PORTA,1  ; ?PORTA???????????
+    
+    BANKSEL TMR1H  ; 
+    MOVLW 10000101B  ; 
+    MOVWF TMR1H
+    
+    BANKSEL TMR1L  ; 
+    MOVLW 11110001B  ; 
+    MOVWF TMR1L  ; 
+
+    retfie
+psect   main,class=CODE,delta=2 ; PIC10/12/16
+    
+    
+ global _main
+_main:
+BANKSEL PORTA  ; ?Bank?PORTA
+CLRF  PORTA  ; PORTA??
+BANKSEL LATA  ; ?Bank?LATA
+CLRF  LATA  ; LATA??
+BANKSEL ANSELA  ; ?Bank?ANSELA
+CLRF  ANSELA  ; ANSELA??
+BANKSEL TRISA  ; Bank?TRISA
+MOVLW 11111101B  ; 11111101--->?????W
+MOVWF  TRISA  ; W????TRISA???
+
+BANKSEL PORTA  ; ?Bank?PORTA
+movlw  000h  ; 0x00--->W
+movwf  PORTA  
+    
+BANKSEL T1CON  ; 
+MOVLW 00100011B  ; 
+MOVWF T1CON  ; 
+
+BANKSEL T1CLK  ; 
+MOVLW 00000001B  ; 
+MOVWF T1CLK  ; 
+
+    
+BANKSEL INTCON;
+MOVLW 11000001B;
+MOVWF INTCON;
+    
+BANKSEL PIE4;
+MOVLW 00000001B;
+MOVWF PIE4;
+
+BANKSEL TMR1H  ; 
+MOVLW 10000101B  ; 
+MOVWF TMR1H
+
+BANKSEL TMR1L  ; 
+MOVLW 11110001B ; 
+MOVWF TMR1L  ; 
+  
+LOOP:
+    NOP
+    goto LOOP
+end reset_vec 

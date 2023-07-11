@@ -1,0 +1,91 @@
+#include <xc.inc>
+
+    psect   init, class=CODE, delta=2
+    psect   end_init, class=CODE, delta=2
+    psect   powerup, class=CODE, delta=2
+    psect   cinit,class=CODE,delta=2
+    psect   functab,class=ENTRY,delta=2
+    psect   idloc,class=IDLOC,delta=2,noexec
+    psect   eeprom_data,class=EEDATA,delta=2,space=3,noexec
+    psect   intentry, class=CODE, delta=2
+    psect   reset_vec, class=CODE, delta=2
+
+    global _main, reset_vec, start_initialization
+
+psect config, class=CONFIG, delta=2
+    dw	0xDFEC
+    dw	0xF7FF
+    dw	0xFFBF
+    dw	0xEFFE
+    dw	0xFFFF
+    
+    psect	reset_vec
+reset_vec:
+    ljmp	_main
+    
+    psect cinit
+start_initialization:
+   
+    psect	CommonVar, class=COMMON, space=1, delta=1
+charcase: ds 1h
+
+    psect intentry
+intentry:
+    retfie
+    
+psect   main,class=CODE,delta=2 ; PIC10/12/16
+    
+ global _main
+_main:
+
+;write code here
+BANKSEL PORTA  ; 选Bank为PORTA
+CLRF  PORTA  ; PORTA清零
+BANKSEL LATA  ; 选Bank为LATA
+CLRF  LATA  ; LATA清零
+BANKSEL ANSELA  ; 选Bank为ANSELA
+CLRF  ANSELA  ; ANSELA清零
+BANKSEL TRISA  ; Bank为TRISA
+MOVLW 11111101B  ; 11111101--->工作寄存器W
+MOVWF  TRISA  ; W的值写入TRISA寄存器
+
+BANKSEL PORTA  ; 选Bank为PORTA
+movlw  000h  ; 0x00--->W
+movwf  PORTA  ; 
+
+; 初始化定时器
+BANKSEL T1CON  ; 
+MOVLW 000110011B  ; 
+MOVWF T1CON  ; 
+
+BANKSEL T1CLK  ; 
+MOVLW 00000001B  ; 
+MOVWF T1CLK  ; 
+
+; 循环闪灯
+loop:
+
+BANKSEL TMR1L  ; 
+MOVLW 11110111B  ; 
+MOVWF TMR1L  ; 
+
+BANKSEL TMR1H  ; 
+MOVLW 11000010B  ; 
+MOVWF TMR1H  ; 
+
+; 延时循环体
+BANKSEL PIR4  ; 
+LP1:
+BTFSS PIR4,0  ; 如果PIR4寄存器的第0位为1，则产生了中断，跳过下一条指令
+GOTO LP1  ; 
+BCF PIR4, 0  ; 将PIR4寄存器的第0位清零
+
+; IO口翻转
+BANKSEL PORTA  ; 
+COMF PORTA,1  ; 对PORTA寄存器进行按位取反操作
+
+goto loop  ; 
+
+return  ; 
+
+end reset_vec
